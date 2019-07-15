@@ -1,0 +1,402 @@
+{
+  "ruleChain": {
+    "additionalInfo": null,
+    "name": "SMARTYCLEReader",
+    "firstRuleNodeId": null,
+    "root": false,
+    "debugMode": true,
+    "configuration": null
+  },
+  "metadata": {
+    "firstNodeIndex": 1,
+    "nodes": [
+      {
+        "additionalInfo": {
+          "layoutX": 892,
+          "layoutY": 34
+        },
+        "type": "org.thingsboard.rule.engine.transform.TbTransformMsgNode",
+        "name": "SendAuthReply",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "var newMsg = {};\n\nif (msg.method == \"checkUserID\") {\n    var usr = msg.params.trim();\n    if ((usr.trim() == metadata.ss_User1_ID.trim()) || (usr.trim() == metadata.ss_User2_ID.trim())) {\n        newMsg.method = \"UserApr\";\n        newMsg.params = true;\n    } else {\n        newMsg.method = \"UserApr\";\n        newMsg.params = false;\n    }\n    msgType = 'RPC messageToRFIDController';\n    return {msg: newMsg, metadata: metadata, msgType: msgType};\n} else if(msg.method == \"creditPointsToUser\") {\n    msgType = 'POST_ATTRIBUTES_REQUEST';\n    return {msg: msg, metadata: metadata, msgType: msgType};\n} else if (msg.method == \"Led\") {\n    msgType = 'REQUEST_TO_DEVICE';\n    metadata.deviceType = \"LedController\";\n    metadata.deviceName = \"LEDCTRL\";\n    return {msg: msg, metadata: metadata, msgType: msgType};\n}\n"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 229,
+          "layoutY": 83
+        },
+        "type": "org.thingsboard.rule.engine.filter.TbMsgTypeSwitchNode",
+        "name": "mseesageRouter",
+        "debugMode": true,
+        "configuration": {
+          "version": 0
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 1014,
+          "layoutY": 217
+        },
+        "type": "org.thingsboard.rule.engine.rpc.TbSendRPCReplyNode",
+        "name": "SendUsrData",
+        "debugMode": true,
+        "configuration": {
+          "requestIdMetaDataAttribute": "requestId"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 422,
+          "layoutY": 293
+        },
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgTimeseriesNode",
+        "name": "save to series",
+        "debugMode": true,
+        "configuration": {
+          "defaultTTL": 0
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 480,
+          "layoutY": 21
+        },
+        "type": "org.thingsboard.rule.engine.metadata.TbGetAttributesNode",
+        "name": "AddUserData",
+        "debugMode": true,
+        "configuration": {
+          "clientAttributeNames": [],
+          "sharedAttributeNames": [],
+          "serverAttributeNames": [
+            "User1_Credit",
+            "User1_ID",
+            "TotalBottles",
+            "User2_ID",
+            "User2_Credit"
+          ],
+          "latestTsKeyNames": []
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 755,
+          "layoutY": 123
+        },
+        "type": "org.thingsboard.rule.engine.filter.TbJsFilterNode",
+        "name": "checkMsgCtrl",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "return msgType == 'RPC messageToRFIDController';"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 819,
+          "layoutY": 304
+        },
+        "type": "org.thingsboard.rule.engine.filter.TbJsFilterNode",
+        "name": "updateCredit",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "return (msgType === 'POST_ATTRIBUTES_REQUEST');"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 957,
+          "layoutY": 524
+        },
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgAttributesNode",
+        "name": "saveCredit",
+        "debugMode": true,
+        "configuration": {
+          "scope": "SERVER_SCOPE"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 944,
+          "layoutY": 403
+        },
+        "type": "org.thingsboard.rule.engine.transform.TbTransformMsgNode",
+        "name": "addCredit",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "var newmsg = {};\nvar parameters = msg.params;\nvar bottlesToCredit = parseInt(parameters.bottles);\nvar totalBottles = parseInt(metadata.ss_TotalBottles) + parseInt(parameters.bottles);\nvar usr = parameters.user;\n\nif (usr == metadata.ss_User1_ID) {\n    newmsg.User1_Credit = parseInt(metadata.ss_User1_Credit) + bottlesToCredit;\n    }\nif (usr == metadata.ss_User2_ID) {\n    newmsg.User2_Credit = parseInt(metadata.ss_User2_Credit) + bottlesToCredit;\n    }\n\nnewmsg.TotalBottles = totalBottles\n\nreturn {msg: newmsg, metadata: metadata, msgType: msgType};\n"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 271,
+          "layoutY": 393
+        },
+        "type": "org.thingsboard.rule.engine.metadata.TbGetAttributesNode",
+        "name": "addServerAttributes",
+        "debugMode": true,
+        "configuration": {
+          "clientAttributeNames": [],
+          "sharedAttributeNames": [],
+          "serverAttributeNames": [
+            "TotalBottles"
+          ],
+          "latestTsKeyNames": []
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 228,
+          "layoutY": 523
+        },
+        "type": "org.thingsboard.rule.engine.transform.TbTransformMsgNode",
+        "name": "addTotalBottle",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "var newmsg = {};\nvar bottle = msg.bottle;\nvar totalBottles = parseInt(metadata.ss_TotalBottles) + parseInt(bottle);\nnewmsg.TotalBottles = totalBottles;\nmsgType = 'POST_ATTRIBUTES_REQUEST'\nreturn {msg: newmsg, metadata: metadata, msgType: msgType};"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 257,
+          "layoutY": 645
+        },
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgAttributesNode",
+        "name": "saveTotalBottles",
+        "debugMode": false,
+        "configuration": {
+          "scope": "SERVER_SCOPE"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 727,
+          "layoutY": 548
+        },
+        "type": "org.thingsboard.rule.engine.rpc.TbSendRPCRequestNode",
+        "name": "SendToLed",
+        "debugMode": true,
+        "configuration": {
+          "timeoutInSeconds": 60
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 660,
+          "layoutY": 378
+        },
+        "type": "org.thingsboard.rule.engine.transform.TbChangeOriginatorNode",
+        "name": "changeTOLedCtrl",
+        "debugMode": true,
+        "configuration": {
+          "originatorSource": "RELATED",
+          "relationsQuery": {
+            "direction": "TO",
+            "maxLevel": 1,
+            "filters": [
+              {
+                "relationType": "Contains",
+                "entityTypes": [
+                  "DEVICE"
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 523,
+          "layoutY": 177
+        },
+        "type": "org.thingsboard.rule.engine.filter.TbJsFilterNode",
+        "name": "RouteToDeviceBasedOnMethod",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "return (msg.method == \"Led\");\n"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 470,
+          "layoutY": 553
+        },
+        "type": "org.thingsboard.rule.engine.transform.TbTransformMsgNode",
+        "name": "changeOriginatorData",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "//metadata.deviceType = \"LedController\";\n//metadata.deviceName = \"LEDCtrl\";\nmetadata.requestType = 'oneway';\nmsgType = 'new LEDCtrl message'\n\nreturn {msg: msg, metadata: metadata, msgType: msgType};"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 727,
+          "layoutY": 646
+        },
+        "type": "org.thingsboard.rule.engine.action.TbLogNode",
+        "name": "log",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "return 'Incoming message:\\n' + JSON.stringify(msg) + '\\nIncoming metadata:\\n' + JSON.stringify(metadata);"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 115,
+          "layoutY": 753
+        },
+        "type": "org.thingsboard.rule.engine.telemetry.TbMsgAttributesNode",
+        "name": "saveAttributes",
+        "debugMode": true,
+        "configuration": {
+          "scope": "SERVER_SCOPE"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 25,
+          "layoutY": 584
+        },
+        "type": "org.thingsboard.rule.engine.transform.TbTransformMsgNode",
+        "name": "updatettb",
+        "debugMode": true,
+        "configuration": {
+          "jsScript": "var newMsg = {};\nnewMsg.TotalBottles = msg.TotalBottles;\nnewMsg.User1_Credit = msg.TotalBottles;\nnewMsg.User2_Credit = msg.TotalBottles;\nmsgType = 'POST_ATTRIBUTES_REQUEST';\nreturn {msg: newMsg, metadata: metadata, msgType: msgType};"
+        }
+      },
+      {
+        "additionalInfo": {
+          "layoutX": 30,
+          "layoutY": 446
+        },
+        "type": "org.thingsboard.rule.engine.metadata.TbGetAttributesNode",
+        "name": "setTotalBottles",
+        "debugMode": true,
+        "configuration": {
+          "clientAttributeNames": [],
+          "sharedAttributeNames": [
+            "TotalBottles",
+            "User1_Credit",
+            "User2_Credit"
+          ],
+          "serverAttributeNames": [],
+          "latestTsKeyNames": [],
+          "tellFailureIfAbsent": true
+        }
+      }
+    ],
+    "connections": [
+      {
+        "fromIndex": 0,
+        "toIndex": 5,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 1,
+        "toIndex": 19,
+        "type": "Attributes Updated"
+      },
+      {
+        "fromIndex": 1,
+        "toIndex": 19,
+        "type": "Post attributes"
+      },
+      {
+        "fromIndex": 1,
+        "toIndex": 3,
+        "type": "Post telemetry"
+      },
+      {
+        "fromIndex": 1,
+        "toIndex": 14,
+        "type": "RPC Request from Device"
+      },
+      {
+        "fromIndex": 3,
+        "toIndex": 9,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 4,
+        "toIndex": 0,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 5,
+        "toIndex": 6,
+        "type": "False"
+      },
+      {
+        "fromIndex": 5,
+        "toIndex": 2,
+        "type": "True"
+      },
+      {
+        "fromIndex": 6,
+        "toIndex": 2,
+        "type": "True"
+      },
+      {
+        "fromIndex": 6,
+        "toIndex": 8,
+        "type": "True"
+      },
+      {
+        "fromIndex": 8,
+        "toIndex": 7,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 9,
+        "toIndex": 10,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 10,
+        "toIndex": 11,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 12,
+        "toIndex": 16,
+        "type": "Failure"
+      },
+      {
+        "fromIndex": 12,
+        "toIndex": 16,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 13,
+        "toIndex": 15,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 14,
+        "toIndex": 4,
+        "type": "False"
+      },
+      {
+        "fromIndex": 14,
+        "toIndex": 13,
+        "type": "True"
+      },
+      {
+        "fromIndex": 15,
+        "toIndex": 12,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 18,
+        "toIndex": 17,
+        "type": "Success"
+      },
+      {
+        "fromIndex": 19,
+        "toIndex": 18,
+        "type": "Success"
+      }
+    ],
+    "ruleChainConnections": null
+  }
+}
